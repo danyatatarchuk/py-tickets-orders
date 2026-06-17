@@ -35,9 +35,9 @@ class MovieViewSet(viewsets.ModelViewSet):
         Movie.objects.prefetch_related(
             "genres",
             "actors",
+        )
+        .order_by("id")
     )
-    .order_by("id")
-)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -97,7 +97,6 @@ class MovieSessionViewSet(viewsets.ModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all().order_by("id")
     permission_classes = (permissions.IsAuthenticated,)
-
     def get_queryset(self):
         return (
             Order.objects.filter(user=self.request.user)
