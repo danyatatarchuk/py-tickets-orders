@@ -1,15 +1,5 @@
-from datetime import datetime
 from rest_framework import permissions, viewsets
-from rest_framework.pagination import PageNumberPagination
-
-from cinema.models import (
-    Actor,
-    CinemaHall,
-    Genre,
-    Movie,
-    MovieSession,
-    Order,
-)
+from cinema.models import Actor, CinemaHall, Genre, Movie, MovieSession, Order
 from cinema.serializers import (
     ActorSerializer,
     CinemaHallSerializer,
@@ -41,18 +31,13 @@ class CinemaHallViewSet(viewsets.ModelViewSet):
 
 
 class MovieViewSet(viewsets.ModelViewSet):
-    queryset = Movie.objects.prefetch_related(
-        "genres",
-        "actors",
-    ).order_by("id")
+    queryset = Movie.objects.prefetch_related("genres", "actors").order_by("id")
 
     def get_serializer_class(self):
         if self.action == "list":
             return MovieListSerializer
-
         if self.action == "retrieve":
             return MovieDetailSerializer
-
         return MovieSerializer
 
     def get_queryset(self):
@@ -63,40 +48,29 @@ class MovieViewSet(viewsets.ModelViewSet):
         actors = self.request.query_params.get("actors")
 
         if title:
-            queryset = queryset.filter(
-                title__icontains=title
-            )
+            queryset = queryset.filter(title__icontains=title)
 
         if genres:
-            genre_ids = genres.split(",")
-            queryset = queryset.filter(
-                genres__id__in=genre_ids
-            )
+            queryset = queryset.filter(genres__id__in=genres.split(","))
 
         if actors:
-            actor_ids = actors.split(",")
-            queryset = queryset.filter(
-                actors__id__in=actor_ids
-            )
+            queryset = queryset.filter(actors__id__in=actors.split(","))
 
         return queryset.distinct()
 
 
 class MovieSessionViewSet(viewsets.ModelViewSet):
-    queryset = MovieSession.objects.select_related(
-        "movie",
-        "cinema_hall",
-    ).prefetch_related(
-        "tickets",
-    ).order_by("id")
+    queryset = (
+        MovieSession.objects.select_related("movie", "cinema_hall")
+        .prefetch_related("tickets")
+        .order_by("id")
+    )
 
     def get_serializer_class(self):
         if self.action == "list":
             return MovieSessionListSerializer
-
         if self.action == "retrieve":
             return MovieSessionDetailSerializer
-
         return MovieSessionSerializer
 
     def get_queryset(self):
@@ -106,40 +80,21 @@ class MovieSessionViewSet(viewsets.ModelViewSet):
         movie = self.request.query_params.get("movie")
 
         if date:
-            try:
-                parsed_date = datetime.strptime(
-                    date,
-                    "%Y-%m-%d",
-                ).date()
-
-                queryset = queryset.filter(
-                    show_time__date=parsed_date
-                )
-            except ValueError:
-                return queryset.none()
+            queryset = queryset.filter(show_time__date=date)
 
         if movie:
-            queryset = queryset.filter(
-                movie_id=movie
-            )
+            queryset = queryset.filter(movie_id=movie)
 
-        return queryset
-
-
-class OrderPagination(PageNumberPagination):
-    page_size = 10
+        return queryset.distinct()
 
 
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all().order_by("id")
     permission_classes = (permissions.IsAuthenticated,)
-    pagination_class = OrderPagination
 
     def get_queryset(self):
         return (
-            Order.objects.filter(
-                user=self.request.user
-            )
+            Order.objects.filter(user=self.request.user)
             .prefetch_related(
                 "tickets__movie_session__movie",
                 "tickets__movie_session__cinema_hall",
@@ -150,9 +105,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return OrderCreateSerializer
-
         return OrderListSerializer
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-
